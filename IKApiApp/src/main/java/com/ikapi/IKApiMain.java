@@ -34,8 +34,8 @@ class IKArgParser
         parser.addArgument("-l","--loglevel")
                 .dest("loglevel")
                 .required(false)
-                .setDefault("INFO")
-                .help("log level(SEVERE | WARNING | INFO | FINEST)");
+                .setDefault("info")
+                .help("log level(severe [for error/critical] || warning || info || finest [for debug])");
 
         parser.addArgument("-g","--logfile")
                 .dest("logfile")
@@ -773,11 +773,10 @@ public class IKApiMain {
     private static void setUpLogging(String level, String fileName) throws Exception
     {
         Map<String,Level>  levelMap = Map.of(
-                "critical", Level.SEVERE,
-                "error", Level.SEVERE,
+                "severe", Level.SEVERE,
                 "warning", Level.WARNING,
                 "info", Level.INFO,
-                "debug", Level.FINEST);
+                "finest", Level.FINEST);
 
         Level loglevel = levelMap.get(level);
         if(fileName != null && !fileName.isEmpty())
