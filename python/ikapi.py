@@ -23,7 +23,7 @@ class IKApi:
         self.headers    = {'Authorization': 'Token %s' % args.token, \
                            'Accept': 'application/json'}
 
-        self.basehost   = 'nxtgen.indiankanoon.org'
+        self.basehost   = 'api.indiankanoon.org'
         self.storage    = storage
         self.maxcites   = args.maxcites
         self.maxcitedby = args.maxcitedby
