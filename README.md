@@ -61,7 +61,7 @@ apt install mvn
 Then compile the package:
 ```
 mvn clean package
-java -jar target/IKApiApp.jar <options>
+java -jar target/ikapi-1.0.0.jar <options>
 ```
 
 On linux systems
@@ -111,4 +111,22 @@ named arguments:
                          (default: false)
   -N NUMWORKERS, --workers NUMWORKERS
                          num workers for parallel downloads (default: 5)
+```
+
+To use the iKapi library in your Java project with Maven, add the following dependency to your pom.xml file:
+
+```
+<dependency>
+    <groupId>org.indiankanoon</groupId>
+    <artifactId>ikapi</artifactId>
+    <version>1.0.0</version>
+</dependency>
+```
+
+Once the dependency is added, you can start using the library in your code.
+
+To make a request, simply execute:
+
+```
+IKApi.main([options]);
 ```
