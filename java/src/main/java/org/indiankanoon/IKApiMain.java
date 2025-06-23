@@ -1,8 +1,11 @@
+package org.indiankanoon;
+
 import com.opencsv.CSVWriter;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.impl.Arguments;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.Namespace;
+import net.sourceforge.argparse4j.helper.HelpScreenException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -787,10 +790,17 @@ public class IKApiMain {
             initializeStreamLogging(loglevel);
         }
     }
-    public static void main(String[] args) throws Exception,RuntimeException
+    public static void main(String[] args)
     {
+        try{
         ArgumentParser parser = IKArgParser.getArgParser();
-        Namespace ns = parser.parseArgs(args);
+        Namespace ns = null;
+        try{
+           ns = parser.parseArgs(args);
+        }
+        catch (HelpScreenException e) {
+            System.exit(0);
+        }
 
         Integer docId = ns.getInt("docid");
         String query = ns.getString("q");
@@ -841,6 +851,16 @@ public class IKApiMain {
                 ikApiLogger.severe(e.getMessage());
             }
             ikapi.executeTasks(queries);
+        }
+        }
+        catch(RuntimeException re)
+        {
+            ikApiLogger.severe(re.getMessage());
+        }
+
+        catch(Exception e)
+        {
+            ikApiLogger.severe(e.getMessage());
         }
 
     }

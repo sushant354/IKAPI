@@ -61,7 +61,7 @@ apt install mvn
 Then compile the package:
 ```
 mvn clean package
-java -jar target/IKApiApp.jar <options>
+java -jar target/ikapi-1.0.0.jar <options>
 ```
 
 On linux systems
