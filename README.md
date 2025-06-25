@@ -128,5 +128,5 @@ Once the dependency is added, you can start using the library in your code.
 To make a request, simply execute:
 
 ```
-IKApi.main([options]);
+IKApiMain.main([options]);
 ```
