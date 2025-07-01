@@ -62,6 +62,7 @@ options:
                         num workers for parallel downloads
   -C CITEDBY, --citedby CITEDBY
                         citedby docs for docid
+  -x, --no-csv          Do not generate CSV output (default: CSV is generated)
 ```
 JAVA
 =====
