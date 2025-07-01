@@ -8,11 +8,21 @@ git clone https://github.com/sushant354/IKAPI.git
 PYTHON
 ======
 
+Go to Python folder
+
 ```
-usage: ikapi.py [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE]
-                [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE]
-                [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES]
-                [-P] [-a] [-N NUMWORKERS]
+cd python
+```
+
+Install the dependencies
+
+```
+pip install beautifulsoup4
+```
+
+
+```
+usage: ikapi.py [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE]  [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] [-P] [-a] [-N NUMWORKERS] [-C CITEDBY]
 
 For downloading from the api.indiankanoon.org endpoint
 
@@ -50,7 +60,8 @@ options:
   -a, --addedtoday      Search only for documents that were added today
   -N NUMWORKERS, --workers NUMWORKERS
                         num workers for parallel downloads
-
+  -C CITEDBY, --citedby CITEDBY
+                        citedby docs for docid
 ```
 JAVA
 =====

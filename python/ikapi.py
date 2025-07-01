@@ -12,6 +12,7 @@ import csv
 import datetime
 import time
 import multiprocessing
+from bs4 import BeautifulSoup
 
 def print_usage(progname):
     print ('''python %s -t token -o offset -n limit -d datadir''' % progname)
@@ -115,6 +116,30 @@ class IKApi:
         q = urllib.parse.quote_plus(q.encode('utf8'))
         url = '/search/?formInput=%s&pagenum=%d&maxpages=%d' % (q, pagenum, maxpages)
         return self.call_api(url)
+    
+    def fetch_citedby_docs(self,docid):
+        q="citedby:%d"%(docid)
+        
+        pagenum = 0
+        count = 0
+        self.logger.info("Fetching 'cited by' documents for doc_id: %d" % (docid))
+        while 1:
+            results = self.search(q, pagenum, self.maxpages)
+            obj = json.loads(results)
+ 
+            if 'docs' not in obj or len(obj['docs']) <= 0:
+                break
+            docs = obj['docs']
+            self.logger.warning('Num results: %d, pagenum: %d', len(docs), pagenum)
+            for doc in docs:
+                docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
+                if self.download_doc(doc['tid'], docpath):
+                    count += 1
+                    
+
+            pagenum += self.maxpages 
+        
+        return count
 
 
     def save_doc_fragment(self, docid, q):
@@ -435,6 +460,8 @@ def get_arg_parser():
     parser.add_argument('-N', '--workers', type = int, dest='numworkers', \
                         action='store', default = 5, required = False, \
                         help='num workers for parallel downloads')
+    parser.add_argument('-C','--citedby', type = int, dest = 'citedby', \
+                        action = 'store', required= False, help= 'citedby docs for docid')
     return parser
 
 logformat   = '%(asctime)s: %(name)s: %(levelname)s %(message)s'
@@ -467,6 +494,10 @@ def setup_logging(level, filename = None):
     else:
         initialize_stream_logging(loglevel)
 
+def extract_docids_from_links(doc_links):
+    href = [link['href'] for link in doc_links]
+    extracted_docids = [int(re.search(r'/doc/(\d+)/', link).group(1)) for link in href if re.search(r'/doc/(\d+)/', link)]
+    return extracted_docids
 
 if __name__ == '__main__':
     parser = get_arg_parser()
@@ -501,4 +532,28 @@ if __name__ == '__main__':
         for line in filehandle.readlines():
             queries.append(line.strip())
         ikapi.execute_tasks(queries)
-        filehandle.close()
+        filehandle.close() 
+    elif args.citedby:
+        try:
+            toProcess = []
+            total_docs = 0
+             
+            if args.citedby not in toProcess:
+                toProcess.append(args.citedby)
+
+            document = json.loads(ikapi.fetch_doc(args.citedby))
+            if document:
+                doc_html = BeautifulSoup(document['doc'],'html.parser')
+                doc_links = doc_html.find_all('a', href=lambda x: x and x.startswith('/doc/'))
+                extracted_docids = extract_docids_from_links(doc_links)
+                for docid in extracted_docids:
+                    if docid not in toProcess:
+                        toProcess.append(docid)
+            
+            for docid in toProcess:
+                total_docs += ikapi.fetch_citedby_docs(docid)
+            
+            logger.info("Total 'cited by' documents found for doc_id %d : %d" % (args.citedby,total_docs))
+
+        except Exception as e:
+            logger.error("Exception arised while fetching citedby for docid : %d - %s" %(args.citedby,str(e)))
