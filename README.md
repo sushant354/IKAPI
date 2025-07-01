@@ -80,18 +80,14 @@ On linux systems
 ```
 ./run.sh <options>
 
-usage: IKApi [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE]
-             [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE]
-             [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES]
-             [-P] [-a] [-N NUMWORKERS]
+usage: IKApi [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE] [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] [-P] [-a] [-N NUMWORKERS] [-C CITEDBY] [-x]
 
 For downloading from the api.indiankanoon.arg endpoint
 
 named arguments:
   -h, --help             show this help message and exit
   -l LOGLEVEL, --loglevel LOGLEVEL
-                         log level(severe [for  error/critical]  || warning
-                         || info || finest [for debug]) (default: info)
+                         log level(severe [for error/critical] || warning || info || finest [for debug]) (default: info)
   -g LOGFILE, --logfile LOGFILE
                          log file
   -c DOCTYPE, --doctype DOCTYPE
@@ -119,10 +115,12 @@ named arguments:
   -p MAXPAGES, --maxpages MAXPAGES
                          max search result pages (default: 1)
   -P, --pathbysrc        save docs by src (default: false)
-  -a, --addedtoday       Search only the  documents  that  were added today
-                         (default: false)
+  -a, --addedtoday       Search only the documents that were added today (default: false)
   -N NUMWORKERS, --workers NUMWORKERS
                          num workers for parallel downloads (default: 5)
+  -C CITEDBY, --citedby CITEDBY
+                         citedby docs for docid
+  -x, --no-csv           Do not generate CSV output (default: CSV is generated) (default: true)
 ```
 
 To use the iKapi library in your Java project with Maven, add the following dependency to your pom.xml file:

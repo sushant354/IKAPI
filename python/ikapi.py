@@ -187,7 +187,8 @@ class IKApi:
         return docids
 
     def save_search_results(self, q):
-        datadir = self.storage.get_search_path(q)
+        if not self.pathbysrc or self.csv_output:
+            datadir = self.storage.get_search_path(q)
         
         if self.csv_output:
             tochandle, tocwriter = self.storage.get_tocwriter(datadir)
