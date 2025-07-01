@@ -37,6 +37,7 @@ class IKApi:
         self.fromdate   = args.fromdate
         self.todate     = args.todate
         self.sortby     = args.sortby
+        self.csv_output = args.csv_output
 
         if self.maxpages > 100:
             self.maxpages = 100
@@ -119,28 +120,7 @@ class IKApi:
     
     def fetch_citedby_docs(self,docid):
         q="citedby:%d"%(docid)
-        
-        pagenum = 0
-        count = 0
-        self.logger.info("Fetching 'cited by' documents for doc_id: %d" % (docid))
-        while 1:
-            results = self.search(q, pagenum, self.maxpages)
-            obj = json.loads(results)
- 
-            if 'docs' not in obj or len(obj['docs']) <= 0:
-                break
-            docs = obj['docs']
-            self.logger.warning('Num results: %d, pagenum: %d', len(docs), pagenum)
-            for doc in docs:
-                docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
-                if self.download_doc(doc['tid'], docpath):
-                    count += 1
-                    
-
-            pagenum += self.maxpages 
-        
-        return count
-
+        self.save_search_results(q)
 
     def save_doc_fragment(self, docid, q):
         success = False
@@ -203,30 +183,14 @@ class IKApi:
     def download_doctype(self, doctype):
         q = 'doctypes: %s' % doctype
         q = self.make_query(q)
-
-        pagenum = 0
-        docids = []
-        while 1:
-            results = self.search(q, pagenum, self.maxpages)
-            obj = json.loads(results)
- 
-            if 'docs' not in obj or len(obj['docs']) <= 0:
-                break
-            docs = obj['docs']
-            self.logger.warning('Num results: %d, pagenum: %d', len(docs), pagenum)
-            for doc in docs:
-                docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
-                if self.download_doc(doc['tid'], docpath):
-                    docids.append(doc['tid'])
-
-            pagenum += self.maxpages 
-
+        docids = self.save_search_results(q)
         return docids
 
     def save_search_results(self, q):
         datadir = self.storage.get_search_path(q)
-
-        tochandle, tocwriter = self.storage.get_tocwriter(datadir)
+        
+        if self.csv_output:
+            tochandle, tocwriter = self.storage.get_tocwriter(datadir)
 
         pagenum = 0
         current = 1
@@ -249,9 +213,10 @@ class IKApi:
                 docid   = doc['tid']
                 title   = doc['title']
 
-                toc = {'docid': docid, 'title': title, 'position': current, \
-                       'date': doc['publishdate'], 'court': doc['docsource']}
-                tocwriter.writerow(toc)
+                if self.csv_output:
+                    toc = {'docid': docid, 'title': title, 'position': current, \
+                        'date': doc['publishdate'], 'court': doc['docsource']}
+                    tocwriter.writerow(toc)
 
                 if self.pathbysrc:
                     docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
@@ -260,10 +225,11 @@ class IKApi:
                 if self.download_doc(docid, docpath):
                     docids.append(docid)
                 current += 1
-            tochandle.flush()
+            if self.csv_output:
+                tochandle.flush()
             pagenum += self.maxpages 
-
-        tochandle.close()    
+        if self.csv_output:
+            tochandle.close()    
         return docids
 
     def worker(self):
@@ -462,6 +428,8 @@ def get_arg_parser():
                         help='num workers for parallel downloads')
     parser.add_argument('-C','--citedby', type = int, dest = 'citedby', \
                         action = 'store', required= False, help= 'citedby docs for docid')
+    parser.add_argument('-x','--no-csv',dest='csv_output',action='store_false', \
+                        help = "Do not generate CSV output (default: CSV is generated)")
     return parser
 
 logformat   = '%(asctime)s: %(name)s: %(levelname)s %(message)s'
@@ -536,8 +504,6 @@ if __name__ == '__main__':
     elif args.citedby:
         try:
             toProcess = []
-            total_docs = 0
-             
             if args.citedby not in toProcess:
                 toProcess.append(args.citedby)
 
@@ -551,9 +517,7 @@ if __name__ == '__main__':
                         toProcess.append(docid)
             
             for docid in toProcess:
-                total_docs += ikapi.fetch_citedby_docs(docid)
-            
-            logger.info("Total 'cited by' documents found for doc_id %d : %d" % (args.citedby,total_docs))
+                ikapi.fetch_citedby_docs(docid)
 
         except Exception as e:
             logger.error("Exception arised while fetching citedby for docid : %d - %s" %(args.citedby,str(e)))
