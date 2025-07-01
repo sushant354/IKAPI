@@ -672,13 +672,25 @@ class IKApi
           }
     }
 }
+
+/**
+ * Entry point for the IKApi tool.
+ * Handles initialization, CLI input, and processing.
+ */
 public class IKApiMain {
 
     private static final String LOG_FORMAT = "%1$tF %1$tT: %2$s: [%5$s.%6$s:%7$d]: %3$s %4$s %n";
 
     private static  final Logger ikApiLogger = Logger.getLogger("ikapi");
 
-    public static void mkDir(Path filePath)
+    /**
+     * Default constructor for IKApiMain.
+     */
+    public IKApiMain() {
+    }
+
+
+    static void mkDir(Path filePath)
     {
      if(!Files.exists(filePath))
      {
@@ -690,7 +702,7 @@ public class IKApiMain {
          }
      }
     }
-    public static void initializeStreamLogging(Level level) {
+    static void initializeStreamLogging(Level level) {
         Logger rootLogger = Logger.getLogger("");
         rootLogger.setLevel(level);
         removeDefaultHandlers(rootLogger);
@@ -728,7 +740,7 @@ public class IKApiMain {
         rootLogger.addHandler(handler);
     }
 
-    public static void initializeFileLogging(Level level, String filePath) throws Exception{
+    static void initializeFileLogging(Level level, String filePath) throws Exception{
         Logger rootLogger = Logger.getLogger("");
         rootLogger.setLevel(level);
         removeDefaultHandlers(rootLogger);
@@ -790,6 +802,12 @@ public class IKApiMain {
             initializeStreamLogging(loglevel);
         }
     }
+
+    /**
+     * Main method for launching the IKApi tool.
+     *
+     * @param args Command-line arguments passed to the application
+     */
     public static void main(String[] args)
     {
         try{
@@ -865,7 +883,7 @@ public class IKApiMain {
 
     }
 
-    public static LocalDate getDateObj(String publishDate) {
+    static LocalDate getDateObj(String publishDate) {
         Pattern pattern = Pattern.compile("\\d+");
         Matcher matcher = pattern.matcher(publishDate);
         int[] parts =new int[3];

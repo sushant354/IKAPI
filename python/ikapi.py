@@ -12,6 +12,7 @@ import csv
 import datetime
 import time
 import multiprocessing
+from bs4 import BeautifulSoup
 
 def print_usage(progname):
     print ('''python %s -t token -o offset -n limit -d datadir''' % progname)
@@ -36,6 +37,7 @@ class IKApi:
         self.fromdate   = args.fromdate
         self.todate     = args.todate
         self.sortby     = args.sortby
+        self.csv_output = args.csv_output
 
         if self.maxpages > 100:
             self.maxpages = 100
@@ -115,7 +117,10 @@ class IKApi:
         q = urllib.parse.quote_plus(q.encode('utf8'))
         url = '/search/?formInput=%s&pagenum=%d&maxpages=%d' % (q, pagenum, maxpages)
         return self.call_api(url)
-
+    
+    def fetch_citedby_docs(self,docid):
+        q="citedby:%d"%(docid)
+        self.save_search_results(q)
 
     def save_doc_fragment(self, docid, q):
         success = False
@@ -178,30 +183,14 @@ class IKApi:
     def download_doctype(self, doctype):
         q = 'doctypes: %s' % doctype
         q = self.make_query(q)
-
-        pagenum = 0
-        docids = []
-        while 1:
-            results = self.search(q, pagenum, self.maxpages)
-            obj = json.loads(results)
- 
-            if 'docs' not in obj or len(obj['docs']) <= 0:
-                break
-            docs = obj['docs']
-            self.logger.warning('Num results: %d, pagenum: %d', len(docs), pagenum)
-            for doc in docs:
-                docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
-                if self.download_doc(doc['tid'], docpath):
-                    docids.append(doc['tid'])
-
-            pagenum += self.maxpages 
-
+        docids = self.save_search_results(q)
         return docids
 
     def save_search_results(self, q):
         datadir = self.storage.get_search_path(q)
-
-        tochandle, tocwriter = self.storage.get_tocwriter(datadir)
+        
+        if self.csv_output:
+            tochandle, tocwriter = self.storage.get_tocwriter(datadir)
 
         pagenum = 0
         current = 1
@@ -224,9 +213,10 @@ class IKApi:
                 docid   = doc['tid']
                 title   = doc['title']
 
-                toc = {'docid': docid, 'title': title, 'position': current, \
-                       'date': doc['publishdate'], 'court': doc['docsource']}
-                tocwriter.writerow(toc)
+                if self.csv_output:
+                    toc = {'docid': docid, 'title': title, 'position': current, \
+                        'date': doc['publishdate'], 'court': doc['docsource']}
+                    tocwriter.writerow(toc)
 
                 if self.pathbysrc:
                     docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
@@ -235,10 +225,11 @@ class IKApi:
                 if self.download_doc(docid, docpath):
                     docids.append(docid)
                 current += 1
-            tochandle.flush()
+            if self.csv_output:
+                tochandle.flush()
             pagenum += self.maxpages 
-
-        tochandle.close()    
+        if self.csv_output:
+            tochandle.close()    
         return docids
 
     def worker(self):
@@ -435,6 +426,10 @@ def get_arg_parser():
     parser.add_argument('-N', '--workers', type = int, dest='numworkers', \
                         action='store', default = 5, required = False, \
                         help='num workers for parallel downloads')
+    parser.add_argument('-C','--citedby', type = int, dest = 'citedby', \
+                        action = 'store', required= False, help= 'citedby docs for docid')
+    parser.add_argument('-x','--no-csv',dest='csv_output',action='store_false', \
+                        help = "Do not generate CSV output (default: CSV is generated)")
     return parser
 
 logformat   = '%(asctime)s: %(name)s: %(levelname)s %(message)s'
@@ -467,6 +462,10 @@ def setup_logging(level, filename = None):
     else:
         initialize_stream_logging(loglevel)
 
+def extract_docids_from_links(doc_links):
+    href = [link['href'] for link in doc_links]
+    extracted_docids = [int(re.search(r'/doc/(\d+)/', link).group(1)) for link in href if re.search(r'/doc/(\d+)/', link)]
+    return extracted_docids
 
 if __name__ == '__main__':
     parser = get_arg_parser()
@@ -501,4 +500,24 @@ if __name__ == '__main__':
         for line in filehandle.readlines():
             queries.append(line.strip())
         ikapi.execute_tasks(queries)
-        filehandle.close()
+        filehandle.close() 
+    elif args.citedby:
+        try:
+            toProcess = []
+            if args.citedby not in toProcess:
+                toProcess.append(args.citedby)
+
+            document = json.loads(ikapi.fetch_doc(args.citedby))
+            if document:
+                doc_html = BeautifulSoup(document['doc'],'html.parser')
+                doc_links = doc_html.find_all('a', href=lambda x: x and x.startswith('/doc/'))
+                extracted_docids = extract_docids_from_links(doc_links)
+                for docid in extracted_docids:
+                    if docid not in toProcess:
+                        toProcess.append(docid)
+            
+            for docid in toProcess:
+                ikapi.fetch_citedby_docs(docid)
+
+        except Exception as e:
+            logger.error("Exception arised while fetching citedby for docid : %d - %s" %(args.citedby,str(e)))
