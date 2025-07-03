@@ -38,6 +38,7 @@ class IKApi:
         self.todate     = args.todate
         self.sortby     = args.sortby
         self.csv_output = args.csv_output
+        self.save_docs  = args.save_docs
 
         if self.maxpages > 100:
             self.maxpages = 100
@@ -120,7 +121,7 @@ class IKApi:
     
     def fetch_citedby_docs(self,docid):
         q="citedby:%d"%(docid)
-        self.save_search_results(q)
+        return self.save_search_results(q)
 
     def save_doc_fragment(self, docid, q):
         success = False
@@ -183,19 +184,18 @@ class IKApi:
     def download_doctype(self, doctype):
         q = 'doctypes: %s' % doctype
         q = self.make_query(q)
-        docids = self.save_search_results(q)
-        return docids
-
+        return self.save_search_results(q)
+    
     def save_search_results(self, q):
-        if not self.pathbysrc or self.csv_output:
+        if self.save_docs and (not self.pathbysrc or self.csv_output):
             datadir = self.storage.get_search_path(q)
         
-        if self.csv_output:
+        if self.save_docs and self.csv_output:
             tochandle, tocwriter = self.storage.get_tocwriter(datadir)
 
         pagenum = 0
         current = 1
-        docids  = []
+        unique_docs = set()
         while 1:
             results = self.search(q, pagenum, self.maxpages)
             obj = json.loads(results)
@@ -209,29 +209,34 @@ class IKApi:
             docs = obj['docs']
             if len(docs) <= 0:
                 break
-            self.logger.warning('Num results: %d, pagenum: %d found: %s q: %s', len(docs), pagenum, obj['found'], q)
+            if self.save_docs:
+                self.logger.warning('Num results: %d, pagenum: %d found: %s q: %s', len(docs), pagenum, obj['found'], q)
             for doc in docs:
                 docid   = doc['tid']
                 title   = doc['title']
 
-                if self.csv_output:
+                if  self.save_docs and self.csv_output:
                     toc = {'docid': docid, 'title': title, 'position': current, \
                         'date': doc['publishdate'], 'court': doc['docsource']}
                     tocwriter.writerow(toc)
-
-                if self.pathbysrc:
-                    docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
-                else:    
-                    docpath = self.storage.get_docpath_by_position(datadir, current)
-                if self.download_doc(docid, docpath):
-                    docids.append(docid)
+                if self.save_docs:
+                    if self.pathbysrc:
+                        docpath = self.storage.get_docpath(doc['docsource'], doc['publishdate'])
+                    else:    
+                        docpath = self.storage.get_docpath_by_position(datadir, current)
+                        
+                    self.download_doc(docid, docpath)
+                unique_docs.add(int(docid))
                 current += 1
-            if self.csv_output:
+            if  self.save_docs and self.csv_output:
                 tochandle.flush()
             pagenum += self.maxpages 
-        if self.csv_output:
-            tochandle.close()    
-        return docids
+        if  self.save_docs and self.csv_output:
+            tochandle.close()
+        
+        if not self.save_docs:
+            self.logger.info("Total unique documents found for query: %s - %d",q,len(unique_docs))
+        return unique_docs   
 
     def worker(self):
         while True:
@@ -431,6 +436,8 @@ def get_arg_parser():
                         action = 'store', required= False, help= 'citedby docs for docid')
     parser.add_argument('-x','--no-csv',dest='csv_output',action='store_false', \
                         help = "Do not generate CSV output (default: CSV is generated)")
+    parser.add_argument('-w','--save-docs',dest='save_docs',action='store_true',\
+                        help='Save fetched documents locally')
     return parser
 
 logformat   = '%(asctime)s: %(name)s: %(levelname)s %(message)s'
@@ -504,6 +511,7 @@ if __name__ == '__main__':
         filehandle.close() 
     elif args.citedby:
         try:
+            total_unique_docs =set()
             toProcess = []
             if args.citedby not in toProcess:
                 toProcess.append(args.citedby)
@@ -518,7 +526,9 @@ if __name__ == '__main__':
                         toProcess.append(docid)
             
             for docid in toProcess:
-                ikapi.fetch_citedby_docs(docid)
+                total_unique_docs |= ikapi.fetch_citedby_docs(docid)
+            
+            logger.info("Total Unique documents cited by docid %d: %d",args.citedby,len(total_unique_docs))
 
         except Exception as e:
             logger.error("Exception arised while fetching citedby for docid : %d - %s" %(args.citedby,str(e)))

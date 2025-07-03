@@ -17,12 +17,15 @@ cd python
 Install the dependencies
 
 ```
-pip install beautifulsoup4
+pip install -r requirements.txt
 ```
 
 
 ```
-usage: ikapi.py [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE]  [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] [-P] [-a] [-N NUMWORKERS] [-C CITEDBY]
+usage: ikapi.py [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] 
+                [-f FROMDATE]  [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] 
+                [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] 
+                [-p MAXPAGES] [-P] [-a] [-N NUMWORKERS] [-C CITEDBY] [-x] [-w]
 
 For downloading from the api.indiankanoon.org endpoint
 
@@ -63,6 +66,7 @@ options:
   -C CITEDBY, --citedby CITEDBY
                         citedby docs for docid
   -x, --no-csv          Do not generate CSV output (default: CSV is generated)
+   -w, --save-docs       Save fetched documents locally
 ```
 JAVA
 =====
@@ -79,8 +83,12 @@ java -jar target/ikapi-1.0.0.jar <options>
 On linux systems
 ```
 ./run.sh <options>
-
-usage: IKApi [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE] [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] [-P] [-a] [-N NUMWORKERS] [-C CITEDBY] [-x]
+```
+```
+usage: IKApi [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] 
+            [-f FROMDATE] [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] 
+            [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] 
+            [-P] [-a] [-N NUMWORKERS] [-C CITEDBY] [-x]  [-w]
 
 For downloading from the api.indiankanoon.arg endpoint
 
@@ -121,6 +129,7 @@ named arguments:
   -C CITEDBY, --citedby CITEDBY
                          citedby docs for docid
   -x, --no-csv           Do not generate CSV output (default: CSV is generated) (default: true)
+  -w, --save-docs        Save fetched documents locally (default: false)
 ```
 
 To use the iKapi library in your Java project with Maven, add the following dependency to your pom.xml file:
