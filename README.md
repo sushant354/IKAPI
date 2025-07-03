@@ -22,10 +22,10 @@ pip install -r requirements.txt
 
 
 ```
-usage: ikapi.py [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] 
-                [-f FROMDATE]  [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] 
-                [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] 
-                [-p MAXPAGES] [-P] [-a] [-N NUMWORKERS] [-C CITEDBY] [-x] [-w]
+usage: ikapi.py [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE] 
+                [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE] 
+                [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] [-P] 
+                [-a] [-N NUMWORKERS] [-C CITEDBY] [-x] [-n]
 
 For downloading from the api.indiankanoon.org endpoint
 
@@ -66,7 +66,7 @@ options:
   -C CITEDBY, --citedby CITEDBY
                         citedby docs for docid
   -x, --no-csv          Do not generate CSV output (default: CSV is generated)
-   -w, --save-docs       Save fetched documents locally
+  -n, --count           Displays the number of documents extracted from the results instead of saving search results
 ```
 JAVA
 =====
@@ -85,10 +85,10 @@ On linux systems
 ./run.sh <options>
 ```
 ```
-usage: IKApi [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] 
-            [-f FROMDATE] [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] 
-            [-Q QFILE] [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] 
-            [-P] [-a] [-N NUMWORKERS] [-C CITEDBY] [-x]  [-w]
+usage: IKApi [-h] [-l LOGLEVEL] [-g LOGFILE] [-c DOCTYPE] [-f FROMDATE] 
+              [-t TODATE] [-S SORTBY] -D DATADIR -s TOKEN [-q Q] [-Q QFILE] 
+              [-d DOCID] [-o] [-m MAXCITES] [-M MAXCITEDBY] [-p MAXPAGES] [-P] 
+              [-a] [-N NUMWORKERS] [-C CITEDBY] [-x] [-n]
 
 For downloading from the api.indiankanoon.arg endpoint
 
@@ -129,7 +129,7 @@ named arguments:
   -C CITEDBY, --citedby CITEDBY
                          citedby docs for docid
   -x, --no-csv           Do not generate CSV output (default: CSV is generated) (default: true)
-  -w, --save-docs        Save fetched documents locally (default: false)
+  -n, --count            Displays the number of documents extracted from the results instead of saving search results (default: false)
 ```
 
 To use the iKapi library in your Java project with Maven, add the following dependency to your pom.xml file:

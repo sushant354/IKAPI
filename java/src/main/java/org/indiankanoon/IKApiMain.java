@@ -155,12 +155,12 @@ class IKArgParser
                 .setDefault(true)
                 .help("Do not generate CSV output (default: CSV is generated)");
 
-        parser.addArgument("-w","--save-docs")
-                .dest("save_docs")
+        parser.addArgument("-n","--count")
+                .dest("docsCount")
                 .action(Arguments.storeTrue())
                 .required(false)
                 .setDefault(false)
-                .help("Save fetched documents locally");
+                .help("Displays the number of documents extracted from the results instead of saving search results");
 
         return parser;
     }
@@ -322,7 +322,7 @@ class IKApi
     private  String toDate;
     private  String sortBy;
     private Boolean csvOutput;
-    private Boolean saveDocs;
+    private Boolean docsCount;
 
     public IKApi(Namespace ns, FileStorage fileStorage)
     {
@@ -344,7 +344,7 @@ class IKApi
         this.toDate = ns.getString("todate");
         this.sortBy = ns.getString("sortby");
         this.csvOutput = ns.getBoolean("csvOutput");
-        this.saveDocs = ns.getBoolean("save_docs");
+        this.docsCount = ns.getBoolean("docsCount");
 
         if(this.maxPages > 100)
         {
@@ -528,11 +528,11 @@ class IKApi
             Path dataDir = null;
             Writer handler = null;
             CSVWriter writer = null;
-            if (this.saveDocs && (!this.pathBySrc || this.csvOutput))
+            if (!this.docsCount && (!this.pathBySrc || this.csvOutput))
             {
                 dataDir = this.storage.getSearchPath(q);
             }
-            if(this.saveDocs && this.csvOutput) {
+            if(!this.docsCount && this.csvOutput) {
                 List<Object> result = this.storage.getToCWriter(dataDir);
 
                 handler = (Writer) result.get(0);
@@ -558,7 +558,7 @@ class IKApi
                 {
                     break;
                 }
-                if(saveDocs) {
+                if(!this.docsCount) {
                     ikApiLogger.warning(String.format("Num results: %d , pagenum: %d found: %s q: %s", docs.length(), pageNum, obj.getString("found"), q));
                 }
                 for(int i=0;i<docs.length();i++)
@@ -568,13 +568,13 @@ class IKApi
                     String title = doc.getString("title");
                     String publishDate = doc.getString("publishdate");
                     String court =  doc.getString("docsource");
-                    if(this.saveDocs && this.csvOutput) {
+                    if(!this.docsCount && this.csvOutput) {
                         String[] tocRow = {String.valueOf(current), docId, publishDate, court, title};
 
                         writer.writeNext(tocRow);
                     }
                     Path docPath;
-                    if(saveDocs) {
+                    if(!this.docsCount) {
                         if (pathBySrc) {
                             docPath = this.storage.getDocPath(court, publishDate);
                         } else {
@@ -586,17 +586,17 @@ class IKApi
                     uniqueDocs.add(Integer.parseInt(docId));
                     current ++;
                 }
-                if(this.saveDocs && this.csvOutput) {
+                if(!this.docsCount && this.csvOutput) {
                     handler.flush();
                 }
                 pageNum += maxPages;
             }
-            if(this.saveDocs && this.csvOutput) {
+            if(!this.docsCount && this.csvOutput) {
                 handler.close();
             }
-            if(!saveDocs)
+            if(this.docsCount)
             {
-                ikApiLogger.info(String.format("Total unique documents found for query: %s - %d",q,uniqueDocs.size()));
+                ikApiLogger.info(String.format("Total documents found for query: %s - %d",q,uniqueDocs.size()));
             }
 
         } catch (Exception e) {
@@ -919,7 +919,7 @@ public class IKApiMain {
                 {
                     totalUniqueDocs.addAll(ikapi.fetchCitedByDocs(doc_Id));
                 }
-                ikApiLogger.info(String.format("Total Unique documents cited by docid %d: %d",citedByDocId,totalUniqueDocs.size()));
+                ikApiLogger.info(String.format("Total documents cited by docid %d: %d",citedByDocId,totalUniqueDocs.size()));
 
             } catch (Exception e) {
                 ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",citedByDocId,e.getMessage()));
