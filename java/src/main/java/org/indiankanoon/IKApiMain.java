@@ -9,6 +9,10 @@ import net.sourceforge.argparse4j.helper.HelpScreenException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 import javax.net.ssl.HttpsURLConnection;
 import java.net.URI;
 import java.net.URL;
@@ -137,6 +141,26 @@ class IKArgParser
                 .setDefault(5)
                 .required(false)
                 .help("num workers for parallel downloads");
+
+        parser.addArgument("-C","--citedby")
+                .type(Integer.class)
+                .dest("citedby")
+                .required(false)
+                .help("citedby docs for docid");
+
+        parser.addArgument("-x","--no-csv")
+                .dest("csvOutput")
+                .action(Arguments.storeFalse())
+                .required(false)
+                .setDefault(true)
+                .help("Do not generate CSV output (default: CSV is generated)");
+
+        parser.addArgument("-n","--count")
+                .dest("docsCount")
+                .action(Arguments.storeTrue())
+                .required(false)
+                .setDefault(false)
+                .help("Displays the number of documents extracted from the results instead of saving search results");
 
         return parser;
     }
@@ -297,6 +321,8 @@ class IKApi
     private String fromDate;
     private  String toDate;
     private  String sortBy;
+    private Boolean csvOutput;
+    private Boolean docsCount;
 
     public IKApi(Namespace ns, FileStorage fileStorage)
     {
@@ -317,6 +343,8 @@ class IKApi
         this.fromDate = ns.getString("fromdate");
         this.toDate = ns.getString("todate");
         this.sortBy = ns.getString("sortby");
+        this.csvOutput = ns.getBoolean("csvOutput");
+        this.docsCount = ns.getBoolean("docsCount");
 
         if(this.maxPages > 100)
         {
@@ -341,7 +369,7 @@ class IKApi
     }
 
     private String fetchDocFragment(Integer docId, String query) throws Exception{
-        String encodedQuery = URLEncoder.encode(query,"UTF-8");
+        String encodedQuery = URLEncoder.encode(query,StandardCharsets.UTF_8);
         String url = String.format("/docfragment/%d/?formInput=%s",docId,encodedQuery);
         return callApi(url);
     }
@@ -418,6 +446,10 @@ class IKApi
         return result;
     }
 
+    public Set<Integer> fetchCitedByDocs(Integer docId) throws  Exception{
+        String q =  String.format("citedby:%d",docId);
+        return saveSearchResults(q);
+    }
     public boolean downloadDoc(Integer docId, String dataDir) {
         boolean success = false;
         boolean orig_needed = this.orig;
@@ -472,7 +504,7 @@ class IKApi
         return callApi(url);
     }
 
-    private String fetchDoc(Integer docId) {
+    public String fetchDoc(Integer docId) {
         String url = String.format("/doc/%d/",docId);
         List<String> queryParams = new ArrayList<>();
         if(maxCites>0)
@@ -490,18 +522,24 @@ class IKApi
         return callApi(url);
     }
 
-    public List<Integer> saveSearchResults(String q) {
-        List<Integer> docids = new ArrayList<>();
+    public Set<Integer> saveSearchResults(String q) {
+        Set<Integer> uniqueDocs = new HashSet<>();
         try {
-            Path dataDir = this.storage.getSearchPath(q);
-            List<Object> result = this.storage.getToCWriter(dataDir);
+            Path dataDir = null;
+            Writer handler = null;
+            CSVWriter writer = null;
+            if (!this.docsCount && (!this.pathBySrc || this.csvOutput))
+            {
+                dataDir = this.storage.getSearchPath(q);
+            }
+            if(!this.docsCount && this.csvOutput) {
+                List<Object> result = this.storage.getToCWriter(dataDir);
 
-            Writer handler = (Writer) result.get(0);
-            CSVWriter writer = (CSVWriter) result.get(1);
-
+                handler = (Writer) result.get(0);
+                writer = (CSVWriter) result.get(1);
+            }
             int pageNum = 0;
             int current = 1;
-            
             while (true)
             {
                 String results =  search(q,pageNum,this.maxPages);
@@ -520,8 +558,9 @@ class IKApi
                 {
                     break;
                 }
-                ikApiLogger.warning(String.format("Num results: %d , pagenum: %d found: %s q: %s",docs.length(),pageNum,obj.getString("found"),q));
-
+                if(!this.docsCount) {
+                    ikApiLogger.warning(String.format("Num results: %d , pagenum: %d found: %s q: %s", docs.length(), pageNum, obj.getString("found"), q));
+                }
                 for(int i=0;i<docs.length();i++)
                 {
                     JSONObject doc = docs.getJSONObject(i);
@@ -529,35 +568,41 @@ class IKApi
                     String title = doc.getString("title");
                     String publishDate = doc.getString("publishdate");
                     String court =  doc.getString("docsource");
-                    String[] tocRow = { String.valueOf(current),docId,publishDate,court,title};
+                    if(!this.docsCount && this.csvOutput) {
+                        String[] tocRow = {String.valueOf(current), docId, publishDate, court, title};
 
-                    writer.writeNext(tocRow);
-
+                        writer.writeNext(tocRow);
+                    }
                     Path docPath;
+                    if(!this.docsCount) {
+                        if (pathBySrc) {
+                            docPath = this.storage.getDocPath(court, publishDate);
+                        } else {
+                            docPath = this.storage.getDocpathByPosition(dataDir, current);
+                        }
 
-                    if(pathBySrc )
-                    {
-                        docPath = this.storage.getDocPath(court,publishDate);
+                        downloadDoc(Integer.parseInt(docId), docPath.toString());
                     }
-                    else
-                    {
-                        docPath = this.storage.getDocpathByPosition(dataDir,current);
-                    }
-
-                    if(downloadDoc(Integer.parseInt(docId),docPath.toString()))
-                    {
-                        docids.add(Integer.parseInt(docId));
-                    }
+                    uniqueDocs.add(Integer.parseInt(docId));
                     current ++;
                 }
-                handler.flush();
+                if(!this.docsCount && this.csvOutput) {
+                    handler.flush();
+                }
                 pageNum += maxPages;
             }
-            handler.close();
+            if(!this.docsCount && this.csvOutput) {
+                handler.close();
+            }
+            if(this.docsCount)
+            {
+                ikApiLogger.info(String.format("Total documents found for query: %s - %d",q,uniqueDocs.size()));
+            }
+
         } catch (Exception e) {
-            ikApiLogger.severe("Exception while saving search results: "+e.getMessage());
+            ikApiLogger.severe("Exception while saving search results: " + e.getMessage());
         }
-        return docids;
+        return uniqueDocs;
     }
 
     private String search(String q, int pageNum, Integer maxPages) {
@@ -566,40 +611,10 @@ class IKApi
         return callApi(url);
     }
 
-    public List<Integer> downloadDocType(String docType) throws Exception {
+    public Set<Integer> downloadDocType(String docType) throws Exception {
         String q = String.format("doctypes: %s",docType);
         q = makeQuery(q);
-
-        int pageNum = 0;
-        List<Integer> docIds = new ArrayList<>();
-        JSONObject obj;
-        while (true)
-        {
-            String results = search(q,pageNum,this.maxPages);
-            obj = new JSONObject(results);
-            JSONArray docs = obj.getJSONArray("docs");
-            if(!obj.has("docs") || docs.isEmpty() )
-            {
-                break;
-            }
-            ikApiLogger.warning(String.format("Num results: %d, pagenum: %d",docs.length(),pageNum));
-
-            for(int i=0;i<docs.length();i++)
-            {
-                JSONObject doc = docs.getJSONObject(i);
-                String docSource = doc.getString("docsource");
-                String publishDate = doc.getString("publishdate");
-                String tid = String.valueOf(doc.get("tid"));
-
-                Path docPath = this.storage.getDocPath(docSource,publishDate);
-                if(downloadDoc(Integer.parseInt(tid),docPath.toString()))
-                {
-                    docIds.add(Integer.parseInt(tid));
-                }
-            }
-            pageNum += this.maxPages;
-        }
-        return docIds;
+        return saveSearchResults(q);
     }
 
     private String makeQuery(String q) {
@@ -616,11 +631,10 @@ class IKApi
         {
             qs.append(" added:today");
         }
-        if(this.sortBy != null && !this.sortBy.isEmpty());
+        if(this.sortBy != null && !this.sortBy.isEmpty())
         {
             qs.append(" sortby: "+this.sortBy);
         }
-
         return qs.toString();
     }
 
@@ -828,6 +842,7 @@ public class IKApiMain {
         String logLevel = ns.getString("loglevel");
         String logFile = ns.getString("logfile");
         String qFile = ns.getString("qfile");
+        Integer citedByDocId  = ns.getInt("citedby");
 
         setUpLogging(logLevel,logFile);
 
@@ -870,10 +885,46 @@ public class IKApiMain {
             }
             ikapi.executeTasks(queries);
         }
-        }
-        catch(RuntimeException re)
+        else if (citedByDocId != null)
         {
-            ikApiLogger.severe(re.getMessage());
+            try
+            {
+                List<Integer> toProcess = new ArrayList<>();
+                int total_docs = 0;
+                Set<Integer> totalUniqueDocs = new HashSet<>();
+                if(!toProcess.contains(citedByDocId))
+                {
+                    toProcess.add(citedByDocId);
+                }
+                String jsonResponse = ikapi.fetchDoc(citedByDocId);
+                if(jsonResponse != null && !jsonResponse.isEmpty())
+                {
+                    JSONObject document = new JSONObject(jsonResponse);
+                    String htmlContent = document.getString("doc");
+                    Document doc = Jsoup.parse(htmlContent);
+                    Elements  links =  doc.select("a[href^=/doc/]");
+
+                    for(Element link :links)
+                    {
+                        String href =  link.attr("href");
+                        Integer doc_Id =  extractDocIdFromHref(href);
+                        if(doc_Id != null && !toProcess.contains(doc_Id))
+                        {
+                            toProcess.add(doc_Id);
+                        }
+                    }
+                }
+
+                for(Integer doc_Id : toProcess)
+                {
+                    totalUniqueDocs.addAll(ikapi.fetchCitedByDocs(doc_Id));
+                }
+                ikApiLogger.info(String.format("Total documents cited by docid %d: %d",citedByDocId,totalUniqueDocs.size()));
+
+            } catch (Exception e) {
+                ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",citedByDocId,e.getMessage()));
+            }
+        }
         }
 
         catch(Exception e)
@@ -881,6 +932,16 @@ public class IKApiMain {
             ikApiLogger.severe(e.getMessage());
         }
 
+    }
+
+    static Integer extractDocIdFromHref(String href) {
+        Pattern pattern = Pattern.compile("/doc/(\\d+)/");
+        Matcher matcher = pattern.matcher(href);
+        if(matcher.find())
+        {
+            return Integer.parseInt(matcher.group(1));
+        }
+        return null;
     }
 
     static LocalDate getDateObj(String publishDate) {
