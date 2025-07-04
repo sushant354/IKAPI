@@ -39,6 +39,7 @@ class IKApi:
         self.sortby     = args.sortby
         self.csv_output = args.csv_output
         self.docs_count  = args.docs_count
+        self.level      = args.level
 
         if self.maxpages > 100:
             self.maxpages = 100
@@ -119,9 +120,9 @@ class IKApi:
         url = '/search/?formInput=%s&pagenum=%d&maxpages=%d' % (q, pagenum, maxpages)
         return self.call_api(url)
     
-    def fetch_citedby_docs(self,docid):
+    def fetch_citedby_docs(self,docid,log_stmt=""):
         q="citedby:%d"%(docid)
-        return self.save_search_results(q)
+        return self.save_search_results(q,log_stmt)
 
     def save_doc_fragment(self, docid, q):
         success = False
@@ -186,7 +187,7 @@ class IKApi:
         q = self.make_query(q)
         return self.save_search_results(q)
     
-    def save_search_results(self, q):
+    def save_search_results(self, q,log_stmt=""):
         if not self.docs_count and (not self.pathbysrc or self.csv_output):
             datadir = self.storage.get_search_path(q)
         
@@ -209,8 +210,8 @@ class IKApi:
             docs = obj['docs']
             if len(docs) <= 0:
                 break
-            if not self.docs_count:
-                self.logger.warning('Num results: %d, pagenum: %d found: %s q: %s', len(docs), pagenum, obj['found'], q)
+            
+            self.logger.warning('Num results: %d, pagenum: %d found: %s q: %s', len(docs), pagenum, obj['found'], q)
             for doc in docs:
                 docid   = doc['tid']
                 title   = doc['title']
@@ -235,7 +236,7 @@ class IKApi:
             tochandle.close()
         
         if self.docs_count:
-            self.logger.info("Total documents found for query: %s - %d",q,len(unique_docs))
+            self.logger.info("%d document(s) found for query: %s %s",len(unique_docs),q,log_stmt)
         return unique_docs   
 
     def worker(self):
@@ -432,12 +433,14 @@ def get_arg_parser():
     parser.add_argument('-N', '--workers', type = int, dest='numworkers', \
                         action='store', default = 5, required = False, \
                         help='num workers for parallel downloads')
-    parser.add_argument('-C','--citedby', type = int, dest = 'citedby', \
-                        action = 'store', required= False, help= 'citedby docs for docid')
+    parser.add_argument('-C','--citedby', type = int, nargs='+',dest = 'citedby', \
+                        action = 'store',required= False, help= 'Fetch citedby for list of docid(s)')
     parser.add_argument('-x','--no-csv',dest='csv_output',action='store_false', \
-                        help = "Do not generate CSV output (default: CSV is generated)")
+                        required=False,help = "Do not generate CSV output (default: CSV is generated)")
     parser.add_argument('-n','--count',dest='docs_count',action='store_true',\
-                        help='Displays the number of documents extracted from the results instead of saving search results')
+                        required=False,help='Displays the number of documents extracted from the results instead of saving search results')
+    parser.add_argument('-r','--level',dest='level',action="store_true",\
+                        required=False,help="Process next one level of citedby for docid")
     return parser
 
 logformat   = '%(asctime)s: %(name)s: %(levelname)s %(message)s'
@@ -475,6 +478,24 @@ def extract_docids_from_links(doc_links):
     extracted_docids = [int(re.search(r'/doc/(\d+)/', link).group(1)) for link in href if re.search(r'/doc/(\d+)/', link)]
     return extracted_docids
 
+
+def process_level(doc_id,unique_docs_toProcess,ikapi,main_doc):
+    unique_docs = set()
+    document = json.loads(ikapi.fetch_doc(doc_id))
+    if document and document['doc']:
+        doc_html = BeautifulSoup(document['doc'],'html.parser')
+        doc_links = doc_html.find_all('a',href=lambda x: x and x.startswith('/doc/'))
+        extract_docids = extract_docids_from_links(doc_links)
+        for id in extract_docids:
+            if id not in unique_docs_toProcess:
+                log_stmt = "in docid: "+ str(main_doc)
+                docs = ikapi.fetch_citedby_docs(id,log_stmt)
+                unique_docs |= docs
+                unique_docs_toProcess.add(id)
+                
+    return unique_docs           
+
+
 if __name__ == '__main__':
     parser = get_arg_parser()
     args   = parser.parse_args()
@@ -511,24 +532,18 @@ if __name__ == '__main__':
         filehandle.close() 
     elif args.citedby:
         try:
-            total_unique_docs =set()
-            toProcess = []
-            if args.citedby not in toProcess:
-                toProcess.append(args.citedby)
-
-            document = json.loads(ikapi.fetch_doc(args.citedby))
-            if document:
-                doc_html = BeautifulSoup(document['doc'],'html.parser')
-                doc_links = doc_html.find_all('a', href=lambda x: x and x.startswith('/doc/'))
-                extracted_docids = extract_docids_from_links(doc_links)
-                for docid in extracted_docids:
-                    if docid not in toProcess:
-                        toProcess.append(docid)
-            
-            for docid in toProcess:
-                total_unique_docs |= ikapi.fetch_citedby_docs(docid)
-            
-            logger.info("Total documents cited by docid %d: %d",args.citedby,len(total_unique_docs))
-
+            for doc_id in args.citedby:
+                unique_docs =set()
+                unique_docs_toProcess = set()
+                unique_docs |= ikapi.fetch_citedby_docs(doc_id)
+                unique_docs_toProcess.add(doc_id)
+                
+                if ikapi.level:
+                    unique_docs |= process_level(doc_id,unique_docs_toProcess,ikapi,doc_id)
+                
+                if not ikapi.level:
+                    logger.info("Total documents cited by docid %d: %d",doc_id,len(unique_docs))
+                else:
+                    logger.info("Total documents cited by docid %d with level: %d",doc_id,len(unique_docs))
         except Exception as e:
-            logger.error("Exception arised while fetching citedby for docid : %d - %s" %(args.citedby,str(e)))
+            logger.error("Exception arised while fetching citedby for docid : %d - %s" %(doc_id,str(e)))
