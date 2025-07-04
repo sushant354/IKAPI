@@ -39,7 +39,6 @@ class IKApi:
         self.sortby     = args.sortby
         self.csv_output = args.csv_output
         self.docs_count  = args.docs_count
-        self.level      = args.level
 
         if self.maxpages > 100:
             self.maxpages = 100
@@ -479,7 +478,7 @@ def extract_docids_from_links(doc_links):
     return extracted_docids
 
 
-def process_level(doc_id,unique_docs_toProcess,ikapi,main_doc):
+def process_level(doc_id,unique_docs_toProcess,ikapi):
     unique_docs = set()
     document = json.loads(ikapi.fetch_doc(doc_id))
     if document and document['doc']:
@@ -488,7 +487,7 @@ def process_level(doc_id,unique_docs_toProcess,ikapi,main_doc):
         extract_docids = extract_docids_from_links(doc_links)
         for id in extract_docids:
             if id not in unique_docs_toProcess:
-                log_stmt = "in docid: "+ str(main_doc)
+                log_stmt = "in docid: "+ str(doc_id)
                 docs = ikapi.fetch_citedby_docs(id,log_stmt)
                 unique_docs |= docs
                 unique_docs_toProcess.add(id)
@@ -538,10 +537,10 @@ if __name__ == '__main__':
                 unique_docs |= ikapi.fetch_citedby_docs(doc_id)
                 unique_docs_toProcess.add(doc_id)
                 
-                if ikapi.level:
-                    unique_docs |= process_level(doc_id,unique_docs_toProcess,ikapi,doc_id)
+                if args.level:
+                    unique_docs |= process_level(doc_id,unique_docs_toProcess,ikapi)
                 
-                if not ikapi.level:
+                if not args.level:
                     logger.info("Total documents cited by docid %d: %d",doc_id,len(unique_docs))
                 else:
                     logger.info("Total documents cited by docid %d with level: %d",doc_id,len(unique_docs))

@@ -144,9 +144,10 @@ class IKArgParser
 
         parser.addArgument("-C","--citedby")
                 .type(Integer.class)
+                .nargs("+")
                 .dest("citedby")
                 .required(false)
-                .help("citedby docs for docid");
+                .help("Fetch citedby for list of docid(s)");
 
         parser.addArgument("-x","--no-csv")
                 .dest("csvOutput")
@@ -161,6 +162,13 @@ class IKArgParser
                 .required(false)
                 .setDefault(false)
                 .help("Displays the number of documents extracted from the results instead of saving search results");
+
+        parser.addArgument("-r","--level")
+                .dest("level")
+                .action(Arguments.storeTrue())
+                .required(false)
+                .setDefault(false)
+                .help("Process next one level of citedby for docid");
 
         return parser;
     }
@@ -446,9 +454,9 @@ class IKApi
         return result;
     }
 
-    public Set<Integer> fetchCitedByDocs(Integer docId) throws  Exception{
+    public Set<Integer> fetchCitedByDocs(Integer docId,Optional<String> logStmt) throws  Exception{
         String q =  String.format("citedby:%d",docId);
-        return saveSearchResults(q);
+        return saveSearchResults(q,logStmt);
     }
     public boolean downloadDoc(Integer docId, String dataDir) {
         boolean success = false;
@@ -522,8 +530,9 @@ class IKApi
         return callApi(url);
     }
 
-    public Set<Integer> saveSearchResults(String q) {
+    public Set<Integer> saveSearchResults(String q,Optional<String> logStmt) {
         Set<Integer> uniqueDocs = new HashSet<>();
+        String log = logStmt.orElse("");
         try {
             Path dataDir = null;
             Writer handler = null;
@@ -558,9 +567,8 @@ class IKApi
                 {
                     break;
                 }
-                if(!this.docsCount) {
-                    ikApiLogger.warning(String.format("Num results: %d , pagenum: %d found: %s q: %s", docs.length(), pageNum, obj.getString("found"), q));
-                }
+                ikApiLogger.warning(String.format("Num results: %d , pagenum: %d found: %s q: %s", docs.length(), pageNum, obj.getString("found"), q));
+
                 for(int i=0;i<docs.length();i++)
                 {
                     JSONObject doc = docs.getJSONObject(i);
@@ -596,7 +604,7 @@ class IKApi
             }
             if(this.docsCount)
             {
-                ikApiLogger.info(String.format("Total documents found for query: %s - %d",q,uniqueDocs.size()));
+                ikApiLogger.info(String.format("%d document(s) found for query: %s %s",uniqueDocs.size(),q,log));
             }
 
         } catch (Exception e) {
@@ -614,7 +622,7 @@ class IKApi
     public Set<Integer> downloadDocType(String docType) throws Exception {
         String q = String.format("doctypes: %s",docType);
         q = makeQuery(q);
-        return saveSearchResults(q);
+        return saveSearchResults(q,Optional.empty());
     }
 
     private String makeQuery(String q) {
@@ -675,7 +683,7 @@ class IKApi
                       break;
                   }
                   ikApiLogger.info("Processing " + q);
-                  saveSearchResults(q);
+                  saveSearchResults(q,Optional.empty());
                   ikApiLogger.info("Done with query " + q);
               }
           }
@@ -842,7 +850,8 @@ public class IKApiMain {
         String logLevel = ns.getString("loglevel");
         String logFile = ns.getString("logfile");
         String qFile = ns.getString("qfile");
-        Integer citedByDocId  = ns.getInt("citedby");
+        Boolean level = ns.getBoolean("level");
+        List<Integer> citedByDocId  = ns.getList("citedby");
 
         setUpLogging(logLevel,logFile);
 
@@ -865,7 +874,7 @@ public class IKApiMain {
                 q.append(" added:today");
             }
             ikApiLogger.warning(String.format("Search q: %s",q));
-            ikapi.saveSearchResults(q.toString());
+            ikapi.saveSearchResults(q.toString(),Optional.empty());
         }
         else if (docType != null && !docType.isEmpty()) {
             ikapi.downloadDocType(docType);
@@ -885,44 +894,33 @@ public class IKApiMain {
             }
             ikapi.executeTasks(queries);
         }
-        else if (citedByDocId != null)
+        else if (citedByDocId != null && !citedByDocId.isEmpty())
         {
+            Integer doc_Id =null;
             try
             {
-                List<Integer> toProcess = new ArrayList<>();
-                int total_docs = 0;
-                Set<Integer> totalUniqueDocs = new HashSet<>();
-                if(!toProcess.contains(citedByDocId))
-                {
-                    toProcess.add(citedByDocId);
-                }
-                String jsonResponse = ikapi.fetchDoc(citedByDocId);
-                if(jsonResponse != null && !jsonResponse.isEmpty())
-                {
-                    JSONObject document = new JSONObject(jsonResponse);
-                    String htmlContent = document.getString("doc");
-                    Document doc = Jsoup.parse(htmlContent);
-                    Elements  links =  doc.select("a[href^=/doc/]");
+             for(Integer id  : citedByDocId)
+             {
+                 doc_Id = id;
+                 Set<Integer> uniqueDocs = new HashSet<>();
+                 Set<Integer> uniqueDocsToProcess = new HashSet<>();
+                 uniqueDocs.addAll(ikapi.fetchCitedByDocs(doc_Id,Optional.empty()));
+                 uniqueDocsToProcess.add(doc_Id);
 
-                    for(Element link :links)
-                    {
-                        String href =  link.attr("href");
-                        Integer doc_Id =  extractDocIdFromHref(href);
-                        if(doc_Id != null && !toProcess.contains(doc_Id))
-                        {
-                            toProcess.add(doc_Id);
-                        }
-                    }
-                }
-
-                for(Integer doc_Id : toProcess)
-                {
-                    totalUniqueDocs.addAll(ikapi.fetchCitedByDocs(doc_Id));
-                }
-                ikApiLogger.info(String.format("Total documents cited by docid %d: %d",citedByDocId,totalUniqueDocs.size()));
-
+                 if(level)
+                 {
+                     uniqueDocs.addAll(processLevel(doc_Id,uniqueDocsToProcess,ikapi));
+                 }
+                 if(!level)
+                 {
+                     ikApiLogger.info(String.format("Total documents cited by docid %d: %d",doc_Id,uniqueDocs.size()));
+                 }
+                 else {
+                     ikApiLogger.info(String.format("Total documents cited by docid %d with level: %d",doc_Id,uniqueDocs.size()));
+                 }
+             }
             } catch (Exception e) {
-                ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",citedByDocId,e.getMessage()));
+                ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",doc_Id,e.getMessage()));
             }
         }
         }
@@ -932,6 +930,34 @@ public class IKApiMain {
             ikApiLogger.severe(e.getMessage());
         }
 
+    }
+
+    static Set<Integer> processLevel(Integer docId, Set<Integer> uniqueDocsToProcess, IKApi ikapi) throws Exception{
+        Set<Integer> uniqueDocs = new HashSet<>();
+        String jsonResponse = ikapi.fetchDoc(docId);
+        if(jsonResponse != null && !jsonResponse.isEmpty())
+        {
+            JSONObject document = new JSONObject(jsonResponse);
+            String htmlContent = document.getString("doc");
+            if(htmlContent != null && !htmlContent.isEmpty())
+            {
+                Document doc = Jsoup.parse(htmlContent);
+                Elements links = doc.select("a[href^=/doc/]");
+                for(Element link: links)
+                {
+                    String href = link.attr("href");
+                    Integer doc_Id = extractDocIdFromHref(href);
+                    if(doc_Id != null && !uniqueDocsToProcess.contains(doc_Id))
+                    {
+                     Optional<String> logStmt = Optional.of("in docid: "+doc_Id);
+                     Set<Integer> docs = ikapi.fetchCitedByDocs(doc_Id,logStmt);
+                     uniqueDocs.addAll(docs);
+                     uniqueDocsToProcess.add(doc_Id);
+                    }
+                }
+            }
+        }
+        return uniqueDocs;
     }
 
     static Integer extractDocIdFromHref(String href) {
