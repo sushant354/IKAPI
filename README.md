@@ -126,10 +126,11 @@ named arguments:
   -a, --addedtoday       Search only the documents that were added today (default: false)
   -N NUMWORKERS, --workers NUMWORKERS
                          num workers for parallel downloads (default: 5)
-  -C CITEDBY, --citedby CITEDBY
-                         citedby docs for docid
-  -x, --no-csv           Do not generate CSV output (default: CSV is generated) (default: true)
-  -n, --count            Displays the number of documents extracted from the results instead of saving search results (default: false)
+  -C CITEDBY [CITEDBY ...], --citedby CITEDBY [CITEDBY ...]
+                        Fetch citedby for list of docid(s)
+  -x, --no-csv          Do not generate CSV output (default: CSV is generated)
+  -n, --count           Displays the number of documents extracted from the results instead of saving search results
+  -r, --level           Process next one level of citedby for docid
 ```
 
 To use the iKapi library in your Java project with Maven, add the following dependency to your pom.xml file:
