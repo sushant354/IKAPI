@@ -121,6 +121,7 @@ class IKApi:
     
     def fetch_citedby_docs(self,docid,log_stmt=""):
         q="citedby:%d"%(docid)
+        q = self.make_query(q)
         return self.save_search_results(q,log_stmt)
 
     def save_doc_fragment(self, docid, q):
