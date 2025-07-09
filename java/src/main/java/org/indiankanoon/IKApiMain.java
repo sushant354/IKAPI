@@ -456,6 +456,7 @@ class IKApi
 
     public Set<Integer> fetchCitedByDocs(Integer docId,Optional<String> logStmt) throws  Exception{
         String q =  String.format("citedby:%d",docId);
+        q = makeQuery(q);
         return saveSearchResults(q,logStmt);
     }
     public boolean downloadDoc(Integer docId, String dataDir) {
