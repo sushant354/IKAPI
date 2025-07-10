@@ -24,7 +24,7 @@ class IKApi:
         self.headers    = {'Authorization': 'Token %s' % args.token, \
                            'Accept': 'application/json'}
 
-        self.basehost   = 'api.indiankanoon.org'
+        self.basehost   = 'nxtgen.indiankanoon.org'
         self.storage    = storage
         self.maxcites   = args.maxcites
         self.maxcitedby = args.maxcitedby
@@ -482,6 +482,7 @@ def extract_docids_from_links(doc_links):
 def process_level(doc_id,unique_docs_toProcess,ikapi):
     unique_docs = set()
     document = json.loads(ikapi.fetch_doc(doc_id))
+    logger = logging.getLogger('ikapi.process_level')
     if document and document['doc']:
         doc_html = BeautifulSoup(document['doc'],'html.parser')
         doc_links = doc_html.find_all('a',href=lambda x: x and x.startswith('/doc/'))
@@ -489,7 +490,11 @@ def process_level(doc_id,unique_docs_toProcess,ikapi):
         for id in extract_docids:
             if id not in unique_docs_toProcess:
                 log_stmt = "in docid: "+ str(doc_id)
-                docs = ikapi.fetch_citedby_docs(id,log_stmt)
+                try:
+                    docs = ikapi.fetch_citedby_docs(id,log_stmt)
+                except Exception as e:
+                    logger.warning('Error: %s', e)
+                    continue    
                 unique_docs |= docs
                 unique_docs_toProcess.add(id)
                 
@@ -531,19 +536,22 @@ if __name__ == '__main__':
         ikapi.execute_tasks(queries)
         filehandle.close() 
     elif args.citedby:
-        try:
-            for doc_id in args.citedby:
-                unique_docs =set()
-                unique_docs_toProcess = set()
-                unique_docs |= ikapi.fetch_citedby_docs(doc_id)
-                unique_docs_toProcess.add(doc_id)
+        for doc_id in args.citedby:
+            unique_docs =set()
+            unique_docs_toProcess = set()
+            try:
+                newdocs = ikapi.fetch_citedby_docs(doc_id)
+            except Exception as e:
+                logger.error("Error while fetching citedby for docid : %d - %s" %(doc_id,str(e)))
+                continue
+
+            unique_docs |= newdocs 
+            unique_docs_toProcess.add(doc_id)
+             
+            if args.level:
+                unique_docs |= process_level(doc_id,unique_docs_toProcess,ikapi)
                 
-                if args.level:
-                    unique_docs |= process_level(doc_id,unique_docs_toProcess,ikapi)
-                
-                if not args.level:
-                    logger.info("Total documents cited by docid %d: %d",doc_id,len(unique_docs))
-                else:
-                    logger.info("Total documents cited by docid %d with level: %d",doc_id,len(unique_docs))
-        except Exception as e:
-            logger.error("Exception arised while fetching citedby for docid : %d - %s" %(doc_id,str(e)))
+            if not args.level:
+                logger.info("Total documents cited by docid %d: %d",doc_id,len(unique_docs))
+            else:
+                logger.info("Total documents cited by docid %d with level: %d",doc_id,len(unique_docs))
