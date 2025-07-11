@@ -485,7 +485,7 @@ def process_level(doc_id,unique_docs_toProcess,ikapi):
     logger = logging.getLogger('ikapi.process_level')
     if document and document['doc']:
         doc_html = BeautifulSoup(document['doc'],'html.parser')
-        doc_links = doc_html.find_all('a',href=lambda x: x and x.startswith('/doc/'))
+        doc_links = doc_html.select('section span.akn-num > a[href^="/doc/"]')
         extract_docids = extract_docids_from_links(doc_links)
         for id in extract_docids:
             if id not in unique_docs_toProcess:

@@ -898,14 +898,21 @@ public class IKApiMain {
         else if (citedByDocId != null && !citedByDocId.isEmpty())
         {
             Integer doc_Id =null;
-            try
-            {
              for(Integer id  : citedByDocId)
              {
                  doc_Id = id;
                  Set<Integer> uniqueDocs = new HashSet<>();
                  Set<Integer> uniqueDocsToProcess = new HashSet<>();
-                 uniqueDocs.addAll(ikapi.fetchCitedByDocs(doc_Id,Optional.empty()));
+                 Set<Integer>  newDoc = new HashSet<>();
+                 try{
+                    newDoc = ikapi.fetchCitedByDocs(doc_Id,Optional.empty());
+                 }
+                 catch (Exception e) {
+                    ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",doc_Id,e.getMessage()));
+                    continue;
+                }
+
+                 uniqueDocs.addAll(newDoc);   
                  uniqueDocsToProcess.add(doc_Id);
 
                  if(level)
@@ -920,10 +927,7 @@ public class IKApiMain {
                      ikApiLogger.info(String.format("Total documents cited by docid %d with level: %d",doc_Id,uniqueDocs.size()));
                  }
              }
-            } catch (Exception e) {
-                ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",doc_Id,e.getMessage()));
-            }
-        }
+            } 
         }
 
         catch(Exception e)
@@ -943,7 +947,7 @@ public class IKApiMain {
             if(htmlContent != null && !htmlContent.isEmpty())
             {
                 Document doc = Jsoup.parse(htmlContent);
-                Elements links = doc.select("a[href^=/doc/]");
+                Elements links = doc.select("section span.akn-num > a[href^=/doc/]");
                 for(Element link: links)
                 {
                     String href = link.attr("href");
@@ -951,7 +955,14 @@ public class IKApiMain {
                     if(doc_Id != null && !uniqueDocsToProcess.contains(doc_Id))
                     {
                      Optional<String> logStmt = Optional.of("in docid: "+doc_Id);
-                     Set<Integer> docs = ikapi.fetchCitedByDocs(doc_Id,logStmt);
+                     Set<Integer> docs = new HashSet<>();
+                     try{ 
+                     docs= ikapi.fetchCitedByDocs(doc_Id,logStmt);
+                     }
+                     catch (Exception e) {
+                    ikApiLogger.severe(String.format("Exception while fetching citedby for docid: %d - %s",doc_Id,e.getMessage()));
+                    continue;
+                    }
                      uniqueDocs.addAll(docs);
                      uniqueDocsToProcess.add(doc_Id);
                     }
