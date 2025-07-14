@@ -24,7 +24,7 @@ class IKApi:
         self.headers    = {'Authorization': 'Token %s' % args.token, \
                            'Accept': 'application/json'}
 
-        self.basehost   = 'nxtgen.indiankanoon.org'
+        self.basehost   = 'api.indiankanoon.org'
         self.storage    = storage
         self.maxcites   = args.maxcites
         self.maxcitedby = args.maxcitedby
@@ -186,20 +186,34 @@ class IKApi:
         q = 'doctypes: %s' % doctype
         q = self.make_query(q)
         return self.save_search_results(q)
-    
+   
+    def search_with_exception(self, q, pagenum, maxpages):
+        count = 0
+        while count < 3:
+            results = self.search(q, pagenum, self.maxpages)
+            obj = None
+            try:
+                obj = json.loads(results)
+                return obj 
+            except Exception as e:
+                time.sleep(10)
+                count += 1
+                continue
+
+        return None
+
     def save_search_results(self, q,log_stmt=""):
-        if not self.docs_count and (not self.pathbysrc or self.csv_output):
+        if self.csv_output:
             datadir = self.storage.get_search_path(q)
-        
-        if not self.docs_count and self.csv_output:
             tochandle, tocwriter = self.storage.get_tocwriter(datadir)
 
         pagenum = 0
         current = 1
         unique_docs = set()
         while 1:
-            results = self.search(q, pagenum, self.maxpages)
-            obj = json.loads(results)
+            obj = self.search_with_exception(q, pagenum, self.maxpages) 
+            if obj == None:
+                break
 
             if 'errmsg' in obj:
                 self.logger.warning('Error: %s, pagenum: %d q: %s', obj['errmsg'], pagenum, q)
@@ -216,9 +230,12 @@ class IKApi:
                 docid   = doc['tid']
                 title   = doc['title']
 
-                if  not self.docs_count and self.csv_output:
-                    toc = {'docid': docid, 'title': title, 'position': current, \
-                        'date': doc['publishdate'], 'court': doc['docsource']}
+                if  self.csv_output:
+                    toc = { \
+                    'docid': docid, 'title': title, 'position': current,\
+                    'numcites': doc['numcites'],'numcitedby':doc['numcitedby'],\
+                    'date': doc['publishdate'], 'court': doc['docsource']
+                    }
                     tocwriter.writerow(toc)
                 if not self.docs_count:
                     if self.pathbysrc:
@@ -370,7 +387,8 @@ class FileStorage:
         return datadir
 
     def get_tocwriter(self, datadir):
-        fieldnames = ['position', 'docid', 'date', 'court', 'title']
+        fieldnames = ['position', 'docid', 'date', 'court', 'title', \
+                      'numcites', 'numcitedby']
         tocfile   = os.path.join(datadir, 'toc.csv')
         tochandle = open(tocfile, 'w', encoding = 'utf8')
         tocwriter = csv.DictWriter(tochandle, fieldnames=fieldnames)
