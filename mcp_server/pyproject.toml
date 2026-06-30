@@ -1,0 +1,9 @@
+[project]
+name = "mcp-server"
+version = "0.1.0"
+requires-python = ">=3.14"
+dependencies = [
+    "httpx>=0.28.1",
+    "mcp[cli]>=1.28.1",
+    "python-dotenv>=1.2.2",
+]
