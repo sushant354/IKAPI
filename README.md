@@ -164,10 +164,10 @@ You can find the server implementation and details inside the mcp_server directo
    ```bash
    brew install uv
    ```
-2. Navigate to the `mcp_server` directory and install dependencies:
+2. Navigate to the `mcp_server` directory and install the server as a local tool globally:
    ```bash
    cd mcp_server
-   uv sync
+   uv tool install .
    ```
-3. Configure your API token in `.env` and start the server. Follow the instructions in the [mcp_server/README.md](file:///Users/dmohammad/Workspace/IKAPI/mcp_server/README.md) file.
+3. Set your API token in your client config's environment variables (e.g. `INDIANKANOON_API_TOKEN`) and run with command `indian-kanoon-mcp`. For full details on connecting to Claude Desktop/Cursor and advanced tool details, see the [mcp_server/README.md](file:///Users/dmohammad/Workspace/IKAPI/mcp_server/README.md) file.
 

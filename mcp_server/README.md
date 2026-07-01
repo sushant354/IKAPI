@@ -34,12 +34,12 @@ Navigate to the `mcp_server` directory and synchronize the dependencies:
 uv sync
 ```
 
-### 3. Configure Your API Token
-Create a `.env` file in the `mcp_server` directory and add your Indian Kanoon API token:
-
-```env
-INDIANKANOON_API_TOKEN=your_actual_api_token_here
+### 3. Set your API Token
+Ensure the `INDIANKANOON_API_TOKEN` environment variable is set. For local testing, you can export it in your terminal:
+```bash
+export INDIANKANOON_API_TOKEN=your_actual_api_token_here
 ```
+*(Alternatively, you can also place it in a `.env` file in the directory where you run the server).*
 
 ---
 
@@ -66,27 +66,51 @@ This will start the server and print a local URL (e.g., `http://localhost:5173` 
 npx @modelcontextprotocol/inspector uv run server.py
 ```
 
----
+---## Connecting the Server to MCP Clients
 
-## Connecting the Server to MCP Clients
+You can connect the server to clients without using absolute paths by installing it locally as a tool, or using `uvx` directly (once the package is published to PyPI).
 
-### 1. Claude Desktop App
-To connect the Indian Kanoon MCP server to Claude, open your Claude configuration file:
-* **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-* **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+### Option A: Local Tool Installation (Recommended for Local Dev)
+Navigate to the `mcp_server` directory and install the package globally using `uv`:
+```bash
+uv tool install .
+```
+This registers `indian-kanoon-mcp` as a global executable on your system. You can then run it from anywhere.
 
-Add the server to the `mcpServers` configuration:
-
+#### Claude Desktop Configuration:
+Add this to your `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
     "indian-kanoon": {
-      "command": "uv",
+      "command": "indian-kanoon-mcp",
+      "env": {
+        "INDIANKANOON_API_TOKEN": "your_actual_api_token_here"
+      }
+    }
+  }
+}
+```
+
+#### Cursor IDE:
+In Cursor Settings -> **Features** -> **MCP**:
+* **Name**: `indian-kanoon`
+* **Type**: `stdio`
+* **Command**: `indian-kanoon-mcp`
+
+---
+
+### Option B: Using `uvx` / `pip` (Once Published to PyPI)
+If you publish the package to PyPI (as `indian-kanoon-mcp`), users won't even need to download this repository. They can run it directly:
+
+#### Claude Desktop Configuration:
+```json
+{
+  "mcpServers": {
+    "indian-kanoon": {
+      "command": "uvx",
       "args": [
-        "run",
-        "--project",
-        "/absolute/path/to/your/workspace/mcp_server",
-        "/absolute/path/to/your/workspace/mcp_server/server.py"
+        "indian-kanoon-mcp"
       ],
       "env": {
         "INDIANKANOON_API_TOKEN": "your_actual_api_token_here"
@@ -95,16 +119,13 @@ Add the server to the `mcpServers` configuration:
   }
 }
 ```
-*(Make sure to replace `/absolute/path/to/your/workspace/mcp_server` with the actual absolute path to your project folder).*
 
-### 2. Cursor IDE
-To add the server in Cursor:
-1. Open Cursor Settings -> **Features** -> **MCP**.
-2. Click **+ Add New MCP Server**.
-3. Fill in:
-   * **Name**: `indian-kanoon`
-   * **Type**: `stdio`
-   * **Command**: `uv run --project /absolute/path/to/your/workspace/mcp_server /absolute/path/to/your/workspace/mcp_server/server.py`
+#### Cursor IDE:
+* **Name**: `indian-kanoon`
+* **Type**: `stdio`
+* **Command**: `uvx indian-kanoon-mcp`
+
+*(Alternatively, users can install it globally via `pip install indian-kanoon-mcp` or `uv tool install indian-kanoon-mcp` and use `indian-kanoon-mcp` as the command).*
 
 ---
 

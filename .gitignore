@@ -13,6 +13,9 @@ mcp_server/.venv/
 __pycache__/
 *.py[cod]
 *$py.class
+*.egg-info/
+build/
+dist/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/

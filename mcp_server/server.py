@@ -101,5 +101,8 @@ async def get_original_document(doc_id: int) -> dict:
         response.raise_for_status()
         return response.json()
 
-if __name__ == "__main__":
+def main():
     mcp.run()
+
+if __name__ == "__main__":
+    main()

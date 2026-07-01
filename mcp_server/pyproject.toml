@@ -1,9 +1,29 @@
 [project]
-name = "mcp-server"
+name = "indian-kanoon-mcp"
 version = "0.1.0"
-requires-python = ">=3.14"
+description = "Model Context Protocol (MCP) server for Indian Kanoon"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Mohammad Dilshad", email = "contact.dmohammad@gmail.com" }
+]
 dependencies = [
     "httpx>=0.28.1",
     "mcp[cli]>=1.28.1",
     "python-dotenv>=1.2.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/mr-dilshad/IKAPI"
+Repository = "https://github.com/mr-dilshad/IKAPI"
+
+[project.scripts]
+indian-kanoon-mcp = "server:main"
+
+[tool.setuptools]
+py-modules = ["server"]
+
+[build-system]
+requires = ["setuptools>=61.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
