@@ -2,7 +2,6 @@ import argparse
 import logging
 import os
 import re
-import codecs
 import json
 import http.client
 import urllib.request, urllib.parse, urllib.error
@@ -302,7 +301,7 @@ class FileStorage:
 
     def save_json(self, results, filepath):
         json_doc  = results
-        json_file = codecs.open(filepath, mode = 'w', encoding = 'utf-8')
+        json_file = open(filepath, mode = 'w', encoding = 'utf-8')
         json_file.write(json_doc)
         json_file.close()
 
@@ -486,7 +485,7 @@ def setup_logging(level, filename = None):
     loglevel = leveldict[level]
 
     if filename:
-        filestream = codecs.open(filename, 'w', encoding='utf8')
+        filestream = open(filename, 'w', encoding='utf8')
         initialize_file_logging(loglevel, filestream)
     else:
         initialize_stream_logging(loglevel)
