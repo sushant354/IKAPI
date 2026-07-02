@@ -24,7 +24,7 @@ class IKApi:
         self.headers    = {'Authorization': 'Token %s' % args.token, \
                            'Accept': 'application/json'}
 
-        self.basehost   = 'api.indiankanoon.org'
+        self.basehost   = args.basehost
         self.storage    = storage
         self.maxcites   = args.maxcites
         self.maxcitedby = args.maxcitedby
@@ -147,19 +147,16 @@ class IKApi:
                 d = json.loads(jsonstr)
             except Exception as e:
                 self.logger.error('Error in getting doc %s %s', docid, e)
-                return success
-
-            if 'errmsg' in d:
+            if not d or 'errmsg' in d:
                 self.logger.error('Error in getting doc %s', docid)
-                return success
-        
-            self.logger.info('Saved %s', d['title'])
-            self.storage.save_json(jsonstr, jsonpath)
-            success = True
+            else: 
+                self.logger.info('Saved %s', d['title'])
+                self.storage.save_json(jsonstr, jsonpath)
+                success = True
 
-            if orig_needed:
-                if not d['courtcopy']:
-                    orig_needed = False
+                if orig_needed:
+                    if not d['courtcopy']:
+                        orig_needed = False
 
         if orig_needed and not self.storage.exists_original(origpath):
             orig = self.fetch_orig_doc(docid)
@@ -422,6 +419,9 @@ def get_arg_parser():
                         required= True,help='directory to store files')
     parser.add_argument('-s', '--sharedtoken', dest='token', action='store',\
                         required= True,help='api.ik shared token')
+    parser.add_argument('-b', '--basehost', dest='basehost', action='store',\
+                        required = False, default = 'api.indiankanoon.org', \
+                        help='base host for the api endpoint')
 
     parser.add_argument('-q', '--query', dest='q', action='store',\
                         required = False, help='ik query')
