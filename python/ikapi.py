@@ -30,7 +30,8 @@ class IKApi:
         self.orig       = args.orig
         self.maxpages   = args.maxpages
         self.pathbysrc  = args.pathbysrc
-        self.queue      = multiprocessing.Queue(20)
+        self.mp_context = multiprocessing.get_context('fork')
+        self.queue      = self.mp_context.Queue(20)
         self.num_workers= args.numworkers 
         self.addedtoday = args.addedtoday
         self.fromdate   = args.fromdate
@@ -269,7 +270,7 @@ class IKApi:
     def execute_tasks(self, queries):
         workers = []
         for i in range(0, self.num_workers):
-            process =  multiprocessing.Process(target = self.worker)
+            process =  self.mp_context.Process(target = self.worker)
             process.start()
             workers.append(process)
       
