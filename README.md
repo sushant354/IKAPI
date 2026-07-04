@@ -151,3 +151,23 @@ To make a request, simply execute:
 ```
 IKApiMain.main([options]);
 ```
+
+MODEL CONTEXT PROTOCOL (MCP) SERVER
+==================================
+
+This repository also contains a Model Context Protocol (MCP) server for Indian Kanoon, which allows LLMs (like Claude, Cursor, ChatGPT, etc.) to query the Indian Kanoon database directly.
+
+You can find the server implementation and details inside the mcp_server directory.
+
+### Quick Start
+1. Install `uv` (if not already installed):
+   ```bash
+   brew install uv
+   ```
+2. Navigate to the `mcp_server` directory and install the server as a local tool globally:
+   ```bash
+   cd mcp_server
+   uv tool install .
+   ```
+3. Set your API token in your client config's environment variables (e.g. `INDIANKANOON_API_TOKEN`) and run with command `indian-kanoon-mcp`. For full details on connecting to Claude Desktop/Cursor and advanced tool details, see the [mcp_server/README.md](file:///Users/dmohammad/Workspace/IKAPI/mcp_server/README.md) file.
+

@@ -1,0 +1,37 @@
+# Virtual environments
+.venv/
+venv/
+ENV/
+mcp_server/.venv/
+
+# Environment variables (secrets)
+.env
+.env.*
+!.env.example
+
+# Python cache and temporary files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# IDE / Editor files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS generated files
+.DS_Store
+.DS_Store?
+ehthumbs.db
+Icon?
+Thumbs.db
